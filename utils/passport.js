@@ -39,12 +39,14 @@ const passportGoogle = (app) => {
     )
   );
 
-  app.get(
-    '/google-login',
-    passport.authenticate('google', {
+  app.get('/google-login', (req, res, next) => {
+    const authenticator = passport.authenticate('google', {
       scope: ['profile', 'email'],
-    })
-  );
+      state: req.query?.redirect || '',
+    });
+
+    authenticator(req, res, next);
+  });
   app.get(
     '/auth/google/callback',
     passport.authenticate('google', {
@@ -53,7 +55,12 @@ const passportGoogle = (app) => {
     }),
     async function (req, res) {
       try {
+        const { state } = req.query;
+
         const token = await generateToken({ id: req.user._id }, '1d');
+        if (state) {
+          return res.redirect(`${state}token=${token}`);
+        }
         return res.status(200).json({ token, status: 'success' });
       } catch (error) {
         console.log(error);
