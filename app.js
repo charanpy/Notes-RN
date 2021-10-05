@@ -11,6 +11,11 @@ require('./utils/passport')(app);
 const globalError = require('./controller/errorController');
 const AppError = require('./utils/AppError');
 
+// routes
+const authRoute = require('./routes/auth');
+
+app.use('/api/v1/auth', authRoute);
+
 app.get('/', (req, res, next) => {
   return next(new AppError('hi'));
 });

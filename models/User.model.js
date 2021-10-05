@@ -30,6 +30,12 @@ const UserSchema = new mongoose.Schema(
       minlength: [2, 'Username should be minimum of 2 character long'],
       trim: true,
     },
+    isVerified: {
+      type: Boolean,
+      default: function () {
+        return this.isGoogle;
+      },
+    },
   },
   { timestamps: true }
 );
@@ -40,6 +46,13 @@ UserSchema.pre('save', async function (next) {
   }
   next();
 });
+
+UserSchema.methods.comparePassword = async function (
+  userPassword,
+  hashedPassword
+) {
+  return await bcrypt.compare(userPassword, hashedPassword);
+};
 
 const User = mongoose.model('User', UserSchema);
 
