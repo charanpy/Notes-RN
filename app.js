@@ -20,9 +20,11 @@ app.get('/', (req, res, next) => {
   return next(new AppError('hi'));
 });
 
-app.use(globalError);
 app.all('*', (req, res, next) => {
-  next(new AppError(`can't find ${req.originalUrl} on this server`, 404));
+  return next(
+    new AppError(`can't find ${req.originalUrl} on this server`, 404)
+  );
 });
 
+app.use(globalError);
 module.exports = app;

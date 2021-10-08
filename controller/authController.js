@@ -4,6 +4,7 @@ const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
 const generateCode = require('generate-password');
 const sendEmail = require('../utils/nodemailer');
+const { generateToken, verifyToken } = require('../utils/jwt');
 
 const genCode = () =>
   generateCode.generate({
@@ -17,6 +18,19 @@ exports.login = catchAsync(async (req, res, next) => {
   if (!email || !password) {
     return next(new AppError('Please fill all fields', 400));
   }
+
+  const user = await User.findOne({ email });
+  console.log(await user.comparePassword(password, user.password));
+
+  if (!user || !(await user.comparePassword(password, user.password)))
+    return next(new AppError('Invalid credentials', 400));
+
+  const token = await generateToken({ id: user._id }, '1d');
+
+  return res.status(200).json({
+    status: 'success',
+    data: { user, token },
+  });
 });
 
 exports.sendVerificationCode = catchAsync(async (req, res, next) => {
@@ -99,4 +113,47 @@ exports.register = catchAsync(async (req, res, next) => {
   const newUser = await User.create({ email, password, username });
 
   return res.status(200).json({ status: 'success', user: newUser });
+});
+
+exports.getMe = catchAsync(async (req, res, next) => {
+  const user = await User.findById(req.user._id);
+  return res.status(200).json({
+    status: 'success',
+    user,
+  });
+});
+
+exports.protect = catchAsync(async (req, res, next) => {
+  let token;
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith('Bearer')
+  ) {
+    token = req.headers.authorization.split(' ')[1];
+  }
+  if (!token) {
+    return next(
+      new AppError('You are not logged in.Please login to get access', 401)
+    );
+  }
+  let decoded;
+  try {
+    decoded = await verifyToken(token, process.env.JWT_TOKEN);
+  } catch (e) {
+    return next(new AppError('Please login to get access', 401));
+  }
+
+  if (!decoded)
+    return next(
+      new AppError('You are not logged in.Please login to get access', 401)
+    );
+  const freshUser = await User.findById(decoded.id);
+
+  if (!freshUser) {
+    return next(new AppError('User does not exist', 401));
+  }
+
+  req.user = freshUser;
+
+  next();
 });
